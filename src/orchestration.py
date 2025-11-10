@@ -21,7 +21,7 @@ class Result(TypedDict):
     s3_path: str
 
 
-def orchestrate_weather_collect(region: Region, s3_path: str) -> Result:
+def orchestrate_weather_collect(region: Region, s3_base_path: str) -> Result:
     logger.info(f"Orchestrating weather collect for {region['name']}")
     latitude, longitude = region["latitude"], region["longitude"]
     data = fetch_weather(latitude, longitude)
@@ -31,7 +31,7 @@ def orchestrate_weather_collect(region: Region, s3_path: str) -> Result:
 
     stem = f"weather_{region['name']}_{datetime.now():%Y%m%d}"
     raw_filename = f"{stem}.csv"
-    raw_file_path = f"{s3_path}/{raw_filename}"
+    raw_file_path = f"{s3_base_path}/{raw_filename}"
     export_dataframe(df, raw_file_path)
     logger.info(f"Raw data saved to {raw_file_path}")
 
@@ -41,14 +41,14 @@ def orchestrate_weather_collect(region: Region, s3_path: str) -> Result:
     }
 
 
-def orchestrate_weather_transform(result: Result, s3_path: str) -> Result:
-    df = pd.read_csv(s3_path)
+def orchestrate_weather_transform(result: Result, s3_base_path: str) -> Result:
+    df = pd.read_csv(result["s3_path"])
     df = transform_weather(df)
     logger.info(f"Data transformed for {result['s3_path']}")
 
     stem = Path(result["s3_path"]).stem
     clean_filename = f"{stem}.parquet"
-    clean_file_path = f"{s3_path}/{clean_filename}"
+    clean_file_path = f"{s3_base_path}/{clean_filename}"
 
     export_dataframe(df, clean_file_path)
     logger.info(f"Transformed data saved to {clean_file_path}")
@@ -59,13 +59,13 @@ def orchestrate_weather_transform(result: Result, s3_path: str) -> Result:
     }
 
 
-def orchestrate_weather_analysis(result: Result, s3_path: str) -> Result:
+def orchestrate_weather_analysis(result: Result, s3_base_path: str) -> Result:
     df = analysis_weather(result["s3_path"])
     logger.info(f"Data analyzed for {result["s3_path"]}")
 
     stem = Path(result["s3_path"]).stem
     analysis_filename = f"{stem}.csv"
-    analysis_file_path = f"{s3_path}/{analysis_filename}"
+    analysis_file_path = f"{s3_base_path}/{analysis_filename}"
     export_dataframe(df, analysis_file_path)
     logger.info(f"Analyzed data saved to {analysis_file_path}")
 
@@ -75,13 +75,13 @@ def orchestrate_weather_analysis(result: Result, s3_path: str) -> Result:
     }
 
 
-def orchestrate_weather_plot(result: Result, s3_path: str) -> Result:
+def orchestrate_weather_plot(result: Result, s3_base_path: str) -> Result:
     df = pd.read_csv(result["s3_path"])
     logger.info(f"Data plotted for {result["s3_path"]}")
 
     stem = Path(result["s3_path"]).stem
     plot_filename = f"{stem}.png"
-    plot_file_path = f"{s3_path}/{plot_filename}"
+    plot_file_path = f"{s3_base_path}/{plot_filename}"
     plot_weather(df, plot_file_path)
     logger.info(f"Plotted data saved to {plot_file_path}")
 
