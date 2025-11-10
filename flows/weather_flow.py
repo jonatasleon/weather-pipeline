@@ -2,6 +2,7 @@ import os
 
 from prefect import flow, task, unmapped
 from prefect_aws import AwsCredentials
+from prefect_aws.s3 import S3Bucket
 
 from src.orchestration import (
     orchestrate_weather_analysis,
@@ -11,17 +12,19 @@ from src.orchestration import (
 )
 from src.interest_region import REGIONS, Region
 
-
 try:
-    aws_credentials = AwsCredentials.load("aws-keys")
+    s3_bucket_block = S3Bucket.load("aws-bucket")
+    aws_credentials = s3_bucket_block.credentials
+
+    os.environ["BUCKET_NAME"] = s3_bucket_block.bucket_name
     os.environ["AWS_ACCESS_KEY_ID"] = aws_credentials.aws_access_key_id
     os.environ["AWS_SECRET_ACCESS_KEY"] = str(
         aws_credentials.aws_secret_access_key.get_secret_value()
     )
 
     os.environ["REGION_NAME"] = aws_credentials.region_name or "sa-east-1"
-except ValueError:
-    raise ValueError("AWS credentials not found")
+except ValueError as e:
+    raise ValueError("AWS credentials/S3 bucket not found") from e
 
 
 @task(retries=3)
@@ -46,7 +49,6 @@ def orchestrate_weather_plot_task(ctx: dict, s3_path: str) -> dict:
 
 @flow(log_prints=True, name="weather-flow")
 def main():
-
     bucket_name = os.getenv("BUCKET_NAME")
     raw_s3_path = unmapped(f"s3://{bucket_name}/raw")
     clean_s3_path = unmapped(f"s3://{bucket_name}/clean")
