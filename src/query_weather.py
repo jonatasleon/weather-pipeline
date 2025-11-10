@@ -1,3 +1,4 @@
+import os
 from textwrap import dedent
 import duckdb
 
@@ -38,7 +39,7 @@ def analysis_weather(s3_path: str):
         ORDER BY day DESC
         """
     ).strip()
-    with duckdb.connect(config={"s3_region": "sa-east-1"}) as con:
-        with con.cursor() as cursor:
+    with duckdb.connect(config={"s3_region": os.environ["REGION_NAME"]}) as conn:
+        with conn.cursor() as cursor:
             result = cursor.execute(query)
             return result.df()
