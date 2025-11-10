@@ -1,10 +1,10 @@
-from pathlib import Path
+from io import BytesIO
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def plot_weather(df: pd.DataFrame, output_path: Path) -> None:
+def plot_weather(df: pd.DataFrame, output_file: BytesIO) -> None:
     """
     Plot weather data from a dataframe and save to the specified output path.
 
@@ -59,6 +59,22 @@ def plot_weather(df: pd.DataFrame, output_path: Path) -> None:
         color="green",
         linewidth=2,
     )
+    ax2.plot(
+        df["day"],
+        df["min_windspeed"],
+        label="Min Wind Speed",
+        marker="v",
+        linestyle="--",
+        alpha=0.7,
+    )
+    ax2.plot(
+        df["day"],
+        df["max_windspeed"],
+        label="Max Wind Speed",
+        marker="^",
+        linestyle="--",
+        alpha=0.7,
+    )
     ax2.fill_between(
         df["day"], df["min_windspeed"], df["max_windspeed"], alpha=0.2, color="green"
     )
@@ -79,6 +95,22 @@ def plot_weather(df: pd.DataFrame, output_path: Path) -> None:
         color="purple",
         linewidth=2,
     )
+    ax3.plot(
+        df["day"],
+        df["min_relative_humidity"],
+        label="Min Relative Humidity",
+        marker="v",
+        linestyle="--",
+        alpha=0.7,
+    )
+    ax3.plot(
+        df["day"],
+        df["max_relative_humidity"],
+        label="Max Relative Humidity",
+        marker="^",
+        linestyle="--",
+        alpha=0.7,
+    )
     ax3.fill_between(
         df["day"],
         df["min_relative_humidity"],
@@ -97,6 +129,5 @@ def plot_weather(df: pd.DataFrame, output_path: Path) -> None:
     plt.tight_layout()
 
     # Save the plot
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.savefig(output_file, dpi=300, bbox_inches="tight")
     plt.close()

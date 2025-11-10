@@ -1,11 +1,12 @@
 import logging
+from io import BytesIO
 from datetime import datetime
 from pathlib import Path
 from typing import TypedDict
 
 import pandas as pd
 
-from src.export_file import export_dataframe
+from src.export_file import export_dataframe, export_file
 from src.fetch_weather import fetch_weather
 from src.interest_region import Region
 from src.plot_weather import plot_weather
@@ -82,7 +83,10 @@ def orchestrate_weather_plot(result: Result, s3_base_path: str) -> Result:
     stem = Path(result["s3_path"]).stem
     plot_filename = f"{stem}.png"
     plot_file_path = f"{s3_base_path}/{plot_filename}"
-    plot_weather(df, plot_file_path)
+    with BytesIO() as output_file:
+        plot_weather(df, output_file)
+        output_file.seek(0)
+        export_file(output_file, plot_file_path)
     logger.info(f"Plotted data saved to {plot_file_path}")
 
     return {
