@@ -17,9 +17,6 @@ def to_csv(
     s3_client: BaseClient,
 ):
     """Export DataFrame to CSV in S3."""
-    if s3_client is None:
-        s3_client = boto3.client("s3")
-
     bucket, key = _parse_s3_path(s3_path)
 
     buffer = BytesIO()
@@ -35,9 +32,6 @@ def to_parquet(
     s3_client: BaseClient,
 ):
     """Export DataFrame to Parquet in S3."""
-    if s3_client is None:
-        s3_client = boto3.client("s3")
-
     bucket, key = _parse_s3_path(s3_path)
 
     buffer = BytesIO()
