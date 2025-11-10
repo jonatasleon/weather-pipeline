@@ -41,7 +41,7 @@ def to_parquet(
     s3_client.upload_fileobj(buffer, bucket, key)
 
 
-FORMAT_MAP = {
+EXPORTER_MAP = {
     ExportFormats.CSV: to_csv,
     ExportFormats.PARQUET: to_parquet,
 }
@@ -62,16 +62,17 @@ def _parse_s3_path(s3_path: str) -> tuple[str, str]:
         raise ValueError(f"Invalid S3 path: {s3_path}. Must start with 's3://'")
 
     path_without_prefix = s3_path[5:]  # Remove 's3://'
-    parts = path_without_prefix.split("/", 1)
-
-    if len(parts) != 2:
+    try:
+        bucket, key = path_without_prefix.split("/", 1)
+    except ValueError as e:
         raise ValueError(
             f"Invalid S3 path: {s3_path}. Format should be 's3://bucket/key'"
-        )
+        ) from e
 
-    bucket, key = parts
-    if not bucket:
-        raise ValueError(f"Invalid S3 path: {s3_path}. Bucket name cannot be empty")
+    if not bucket or not key:
+        raise ValueError(
+            f"Invalid S3 path: {s3_path}. Bucket name or key cannot be empty"
+        )
 
     return bucket, key
 
@@ -103,20 +104,23 @@ def export_dataframe(
     s3_client = boto3.client("s3")
 
     try:
-        FORMAT_MAP[str(format).lower()](dataframe, s3_path, s3_client)
+        exporter_function = EXPORTER_MAP[str(format).lower()]
+        exporter_function(dataframe, s3_path, s3_client)
     except KeyError as e:
         raise ValueError(
             f"Invalid format: {s3_path}. Valid formats are: {', '.join(ExportFormats)}."
         ) from e
 
 
-def download_file(s3_path: str, s3_client: BaseClient) -> BytesIO:
+def download_file(
+    s3_path: str,
+    output_file: BytesIO,
+    s3_client: BaseClient | None = None,
+):
     if s3_client is None:
         s3_client = boto3.client("s3")
 
     bucket, key = _parse_s3_path(s3_path)
 
-    buffer = BytesIO()
-    s3_client.download_fileobj(bucket, key, buffer)
-    buffer.seek(0)
-    return buffer
+    s3_client.download_fileobj(bucket, key, output_file)
+    output_file.seek(0)
