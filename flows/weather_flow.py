@@ -62,13 +62,19 @@ def main():
     transform_results = orchestrate_weather_transform_task.map(
         collect_results,
         clean_s3_path,
+        wait_for=collect_results,
     )
     analysis_results = orchestrate_weather_analysis_task.map(
         transform_results,
         analysis_s3_path,
+        wait_for=transform_results,
     )
 
-    orchestrate_weather_plot_task.map(analysis_results, plot_s3_path)
+    orchestrate_weather_plot_task.map(
+        analysis_results,
+        plot_s3_path,
+        wait_for=analysis_results,
+    )
 
 
 if __name__ == "__main__":
