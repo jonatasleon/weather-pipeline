@@ -63,19 +63,16 @@ def main():
     transform_results = orchestrate_weather_transform_task.map(
         collect_results.result(),
         clean_s3_path,
-        wait_for=collect_results,
     )
     transform_results.wait()
     analysis_results = orchestrate_weather_analysis_task.map(
         transform_results.result(),
         analysis_s3_path,
-        wait_for=transform_results,
     )
     analysis_results.wait()
     orchestrate_weather_plot_task.map(
         analysis_results.result(),
         plot_s3_path,
-        wait_for=analysis_results,
     )
 
 
