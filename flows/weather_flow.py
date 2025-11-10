@@ -10,6 +10,7 @@ from src.orchestration import (
     orchestrate_weather_transform,
 )
 from src.interest_region import REGIONS, Region
+from src.utils import create_s3_path
 
 try:
     s3_bucket_block = S3Bucket.load("aws-bucket")
@@ -49,10 +50,10 @@ def orchestrate_weather_plot_task(ctx: dict, s3_path: str) -> dict:
 @flow(log_prints=True, name="weather-flow")
 def main():
     bucket_name = os.getenv("BUCKET_NAME")
-    raw_s3_path = unmapped(f"s3://{bucket_name}/raw")
-    clean_s3_path = unmapped(f"s3://{bucket_name}/clean")
-    analysis_s3_path = unmapped(f"s3://{bucket_name}/analysis")
-    plot_s3_path = unmapped(f"s3://{bucket_name}/plot")
+    raw_s3_path = unmapped(create_s3_path(bucket_name, "raw"))
+    clean_s3_path = unmapped(create_s3_path(bucket_name, "clean"))
+    analysis_s3_path = unmapped(create_s3_path(bucket_name, "analysis"))
+    plot_s3_path = unmapped(create_s3_path(bucket_name, "plot"))
 
     collect_results = orchestrate_weather_collect_task.map(
         REGIONS,
