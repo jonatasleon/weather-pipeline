@@ -28,23 +28,23 @@ except ValueError as e:
 
 
 @task(retries=3)
-def orchestrate_weather_collect_task(region: Region, s3_path: str) -> dict:
-    return orchestrate_weather_collect(region, s3_path)
+def orchestrate_weather_collect_task(region: Region, s3_base_path: str) -> dict:
+    return orchestrate_weather_collect(region, s3_base_path)
 
 
 @task(retries=3)
-def orchestrate_weather_transform_task(ctx: dict, s3_path: str) -> dict:
-    return orchestrate_weather_transform(ctx, s3_path)
+def orchestrate_weather_transform_task(ctx: dict, s3_base_path: str) -> dict:
+    return orchestrate_weather_transform(ctx, s3_base_path)
 
 
 @task(retries=3, tags=["analysis"])
-def orchestrate_weather_analysis_task(ctx: dict, s3_path: str) -> dict:
-    return orchestrate_weather_analysis(ctx, s3_path)
+def orchestrate_weather_analysis_task(ctx: dict, s3_base_path: str) -> dict:
+    return orchestrate_weather_analysis(ctx, s3_base_path)
 
 
 @task(retries=3, tags=["plot"])
-def orchestrate_weather_plot_task(ctx: dict, s3_path: str) -> dict:
-    return orchestrate_weather_plot(ctx, s3_path)
+def orchestrate_weather_plot_task(ctx: dict, s3_base_path: str) -> dict:
+    return orchestrate_weather_plot(ctx, s3_base_path)
 
 
 @flow(log_prints=True, name="weather-flow")
@@ -59,19 +59,21 @@ def main():
         REGIONS,
         raw_s3_path,
     )
+    collect_results.wait()
     transform_results = orchestrate_weather_transform_task.map(
-        collect_results,
+        collect_results.result(),
         clean_s3_path,
         wait_for=collect_results,
     )
+    transform_results.wait()
     analysis_results = orchestrate_weather_analysis_task.map(
-        transform_results,
+        transform_results.result(),
         analysis_s3_path,
         wait_for=transform_results,
     )
-
+    analysis_results.wait()
     orchestrate_weather_plot_task.map(
-        analysis_results,
+        analysis_results.result(),
         plot_s3_path,
         wait_for=analysis_results,
     )
