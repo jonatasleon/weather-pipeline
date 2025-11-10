@@ -14,7 +14,7 @@ class ExportFormats(StrEnum):
 def to_csv(
     dataframe: pd.DataFrame,
     s3_path: str,
-    s3_client: BaseClient | None = None,
+    s3_client: BaseClient,
 ):
     """Export DataFrame to CSV in S3."""
     if s3_client is None:
@@ -32,7 +32,7 @@ def to_csv(
 def to_parquet(
     dataframe: pd.DataFrame,
     s3_path: str,
-    s3_client: BaseClient | None = None,
+    s3_client: BaseClient,
 ):
     """Export DataFrame to Parquet in S3."""
     if s3_client is None:
@@ -86,7 +86,6 @@ def export_dataframe(
     dataframe: pd.DataFrame,
     s3_path: str,
     format: ExportFormats | None = None,
-    s3_client: BaseClient | None = None,
 ):
     """
     Export DataFrame to S3.
@@ -107,6 +106,8 @@ def export_dataframe(
     if format is None:
         format = _get_format_by_filename_extension(s3_path)
 
+    s3_client = boto3.client("s3")
+
     try:
         FORMAT_MAP[str(format).lower()](dataframe, s3_path, s3_client)
     except KeyError as e:
@@ -115,7 +116,7 @@ def export_dataframe(
         ) from e
 
 
-def download_file(s3_path: str, s3_client: BaseClient | None = None) -> BytesIO:
+def download_file(s3_path: str, s3_client: BaseClient) -> BytesIO:
     if s3_client is None:
         s3_client = boto3.client("s3")
 

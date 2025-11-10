@@ -43,11 +43,9 @@ def orchestrate_weather_collect(region: Region, s3_path: str) -> Result:
 
 
 def orchestrate_weather_transform(result: Result, s3_path: str) -> Result:
-    io_buffer = BytesIO()
-    download_file(result["s3_path"], io_buffer)
-    io_buffer.seek(0)
-
-    df = pd.read_csv(io_buffer)
+    with BytesIO() as io_buffer:
+        download_file(result["s3_path"], io_buffer)
+        df = pd.read_csv(io_buffer)
     df = transform_weather(df)
     logger.info(f"Data transformed for {result['s3_path']}")
 
