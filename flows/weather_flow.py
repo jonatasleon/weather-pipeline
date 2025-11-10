@@ -15,7 +15,10 @@ from src.interest_region import REGIONS, Region
 try:
     aws_credentials = AwsCredentials.load("aws-keys")
     os.environ["AWS_ACCESS_KEY_ID"] = aws_credentials.aws_access_key_id
-    os.environ["AWS_SECRET_ACCESS_KEY"] = aws_credentials.aws_secret_access_key
+    os.environ["AWS_SECRET_ACCESS_KEY"] = str(
+        aws_credentials.aws_secret_access_key.get_secret_value()
+    )
+
     os.environ["REGION_NAME"] = aws_credentials.region_name or "sa-east-1"
 except ValueError:
     raise ValueError("AWS credentials not found")
