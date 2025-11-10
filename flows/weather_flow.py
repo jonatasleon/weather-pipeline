@@ -1,7 +1,6 @@
 import os
 
 from prefect import flow, task, unmapped
-from prefect_aws import AwsCredentials
 from prefect_aws.s3 import S3Bucket
 
 from src.orchestration import (
