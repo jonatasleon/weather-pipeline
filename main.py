@@ -11,9 +11,10 @@ from rich.markdown import Markdown
 from rich.logging import RichHandler
 
 from src.export_file import export_dataframe, ExportFormats
+from src.fetch_weather import fetch_weather
 from src.query_weather import analysis_weather
 from src.transform_weather import transform_weather
-from src.fetch_weather import fetch_weather
+from src.utils import create_s3_path
 
 load_dotenv()
 
@@ -43,9 +44,6 @@ def create_dirs():
 def main():
     logger = setup_logging()
     try:
-        # logger.info("Creating directories")
-        # create_dirs()
-        # logger.info("Directories created")
         bucket_name = os.getenv("BUCKET_NAME")
 
         logger.info("Fetching weather data")
@@ -54,7 +52,11 @@ def main():
         logger.info("Weather data fetched")
 
         logger.info("Saving raw data to CSV")
-        raw_s3_path = f"s3://{bucket_name}/raw/weather_{datetime.now():%Y%m%d_%H%M}.csv"
+        raw_s3_path = create_s3_path(
+            bucket_name,
+            "raw",
+            f"weather_{datetime.now():%Y%m%d_%H%M}.csv",
+        )
         export_dataframe(df, raw_s3_path)
         logger.info("Raw data saved to CSV")
 
@@ -63,8 +65,10 @@ def main():
         logger.info("Data transformed")
 
         logger.info("Saving transformed data to Parquet")
-        clean_s3_path = (
-            f"s3://{bucket_name}/clean/weather_{datetime.now():%Y%m%d_%H%M}.parquet"
+        clean_s3_path = create_s3_path(
+            bucket_name,
+            "clean",
+            f"weather_{datetime.now():%Y%m%d_%H%M}.parquet",
         )
         export_dataframe(df, clean_s3_path, ExportFormats.PARQUET)
         logger.info("Transformed data saved to Parquet")
