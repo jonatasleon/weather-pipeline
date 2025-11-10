@@ -1,4 +1,3 @@
-from io import BytesIO
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -6,7 +5,7 @@ from typing import TypedDict
 
 import pandas as pd
 
-from src.export_file import download_file, export_dataframe
+from src.export_file import export_dataframe
 from src.fetch_weather import fetch_weather
 from src.interest_region import Region
 from src.plot_weather import plot_weather
@@ -43,9 +42,7 @@ def orchestrate_weather_collect(region: Region, s3_path: str) -> Result:
 
 
 def orchestrate_weather_transform(result: Result, s3_path: str) -> Result:
-    with BytesIO() as output_file:
-        download_file(result["s3_path"], output_file)
-        df = pd.read_csv(output_file)
+    df = pd.read_csv(s3_path)
     df = transform_weather(df)
     logger.info(f"Data transformed for {result['s3_path']}")
 
