@@ -11,3 +11,4 @@ wheels/
 
 # Project related
 data/
+.env

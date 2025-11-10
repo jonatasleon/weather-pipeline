@@ -1,9 +1,11 @@
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.logging import RichHandler
@@ -12,6 +14,8 @@ from src.export_file import export_dataframe, ExportFormats
 from src.query_weather import analysis_weather
 from src.transform_weather import transform_weather
 from src.fetch_weather import fetch_weather
+
+load_dotenv()
 
 console = Console()
 
@@ -39,9 +43,10 @@ def create_dirs():
 def main():
     logger = setup_logging()
     try:
-        logger.info("Creating directories")
-        create_dirs()
-        logger.info("Directories created")
+        # logger.info("Creating directories")
+        # create_dirs()
+        # logger.info("Directories created")
+        bucket_name = os.getenv("BUCKET_NAME")
 
         logger.info("Fetching weather data")
         data = fetch_weather(latitude=LATITUDE, longitude=LONGITUDE)
@@ -49,8 +54,8 @@ def main():
         logger.info("Weather data fetched")
 
         logger.info("Saving raw data to CSV")
-        filename = RAW_DIR / f"weather_{datetime.now():%Y%m%d_%H%M}.csv"
-        export_dataframe(df, filename, ExportFormats.CSV)
+        raw_s3_path = f"s3://{bucket_name}/raw/weather_{datetime.now():%Y%m%d_%H%M}.csv"
+        export_dataframe(df, raw_s3_path)
         logger.info("Raw data saved to CSV")
 
         logger.info("Transforming data")
@@ -58,12 +63,14 @@ def main():
         logger.info("Data transformed")
 
         logger.info("Saving transformed data to Parquet")
-        filename = CLEAN_DIR / f"weather_{datetime.now():%Y%m%d_%H%M}.parquet"
-        export_dataframe(df, filename, ExportFormats.PARQUET)
+        clean_s3_path = (
+            f"s3://{bucket_name}/clean/weather_{datetime.now():%Y%m%d_%H%M}.parquet"
+        )
+        export_dataframe(df, clean_s3_path, ExportFormats.PARQUET)
         logger.info("Transformed data saved to Parquet")
 
-        logger.info(f"Querying data from {filename}")
-        df = analysis_weather(filename)
+        logger.info(f"Querying data from {clean_s3_path}")
+        df = analysis_weather(clean_s3_path)
         logger.info("Query result fetched")
 
         logger.info("Printing query result")

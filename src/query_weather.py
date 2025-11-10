@@ -2,7 +2,7 @@ from textwrap import dedent
 import duckdb
 
 
-def analysis_weather(filename: str):
+def analysis_weather(s3_path: str):
     query = dedent(
         f"""
         SELECT day,
@@ -33,12 +33,12 @@ def analysis_weather(filename: str):
             VARIANCE(relative_humidity_2m) AS variance_relative_humidity,
             COUNT(relative_humidity_2m) AS count_relative_humidity,
             SUM(relative_humidity_2m) AS sum_relative_humidity,
-        FROM '{filename}'
+        FROM '{s3_path}'
         GROUP BY day
         ORDER BY day DESC
         """
     ).strip()
-    with duckdb.connect() as con:
+    with duckdb.connect(config={"s3_region": "sa-east-1"}) as con:
         with con.cursor() as cursor:
             result = cursor.execute(query)
             return result.df()

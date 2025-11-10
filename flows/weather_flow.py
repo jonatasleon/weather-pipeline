@@ -1,5 +1,6 @@
-from pathlib import Path
+import os
 
+from dotenv import load_dotenv
 from prefect import flow, task, unmapped
 
 from src.orchestration import (
@@ -11,55 +12,51 @@ from src.orchestration import (
 from src.interest_region import REGIONS, Region
 
 
-BASE_DIR = Path(__file__).parents[1] / "data"
+load_dotenv()
 
 
 @task(retries=3)
-def orchestrate_weather_collect_task(region: Region, base_dir: Path) -> dict:
-    output_dir = base_dir / "raw"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    return orchestrate_weather_collect(region, output_dir)
+def orchestrate_weather_collect_task(region: Region, s3_path: str) -> dict:
+    return orchestrate_weather_collect(region, s3_path)
 
 
 @task(retries=3)
-def orchestrate_weather_transform_task(ctx: dict, base_dir: Path) -> dict:
-    output_dir = base_dir / "clean"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    return orchestrate_weather_transform(ctx, output_dir)
+def orchestrate_weather_transform_task(ctx: dict, s3_path: str) -> dict:
+    return orchestrate_weather_transform(ctx, s3_path)
 
 
 @task(retries=3, tags=["analysis"])
-def orchestrate_weather_analysis_task(ctx: dict, base_dir: Path) -> dict:
-    output_dir = base_dir / "analysis"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    return orchestrate_weather_analysis(ctx, output_dir)
+def orchestrate_weather_analysis_task(ctx: dict, s3_path: str) -> dict:
+    return orchestrate_weather_analysis(ctx, s3_path)
 
 
 @task(retries=3, tags=["plot"])
-def orchestrate_weather_plot_task(ctx: dict, base_dir: Path) -> dict:
-    output_dir = base_dir / "plots"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    return orchestrate_weather_plot(ctx, output_dir)
+def orchestrate_weather_plot_task(ctx: dict, s3_path: str) -> dict:
+    return orchestrate_weather_plot(ctx, s3_path)
 
 
 @flow(log_prints=True, name="weather-flow")
 def main():
-    unmapped_base_dir = unmapped(BASE_DIR)
+    bucket_name = os.getenv("BUCKET_NAME")
+    raw_s3_path = unmapped(f"s3://{bucket_name}/raw")
+    clean_s3_path = unmapped(f"s3://{bucket_name}/clean")
+    analysis_s3_path = unmapped(f"s3://{bucket_name}/analysis")
+    plot_s3_path = unmapped(f"s3://{bucket_name}/plot")
 
     collect_results = orchestrate_weather_collect_task.map(
         REGIONS,
-        unmapped_base_dir,
+        raw_s3_path,
     )
     transform_results = orchestrate_weather_transform_task.map(
         collect_results,
-        unmapped_base_dir,
+        clean_s3_path,
     )
     analysis_results = orchestrate_weather_analysis_task.map(
         transform_results,
-        unmapped_base_dir,
+        analysis_s3_path,
     )
 
-    orchestrate_weather_plot_task.map(analysis_results, unmapped_base_dir)
+    orchestrate_weather_plot_task.map(analysis_results, plot_s3_path)
 
 
 if __name__ == "__main__":
