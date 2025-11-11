@@ -12,3 +12,6 @@ wheels/
 # Project related
 data/
 .env
+
+# Text Editors
+.vscode/
