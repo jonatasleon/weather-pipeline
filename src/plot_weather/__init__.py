@@ -4,7 +4,21 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def plot_weather(df: pd.DataFrame, output_file: BytesIO) -> None:
+def config_ax(ax: plt.Axes, info: dict[str, str]) -> plt.Axes:
+    ax.set_title(info["title"])
+    ax.set_xlabel(info["xlabel"])
+    ax.set_ylabel(info["ylabel"])
+    ax.legend(loc="best", prop={"size": 8})
+    ax.grid(True, alpha=0.3)
+    ax.tick_params(axis="x", rotation=45)
+    return ax
+
+
+def plot_weather(
+    df: pd.DataFrame,
+    plot_ctx: dict[str, str],
+    output_file: BytesIO,
+) -> None:
     """
     Plot weather data from a dataframe and save to the specified output path.
 
@@ -17,8 +31,12 @@ def plot_weather(df: pd.DataFrame, output_file: BytesIO) -> None:
     df["day"] = pd.to_datetime(df["day"])
 
     # Create figure with subplots
-    fig, axes = plt.subplots(3, 1, figsize=(12, 10))
-    fig.suptitle("Weather Analysis Over Time", fontsize=16, fontweight="bold")
+    fig, axes = plt.subplots(3, 1, figsize=(9, 12), dpi=200)
+    fig.suptitle(
+        f"Weather Prediction for {plot_ctx['region']} on {plot_ctx['date']}",
+        fontsize=16,
+        fontweight="bold",
+    )
 
     # Plot 1: Temperature (avg, min, max)
     ax1 = axes[0]
@@ -42,12 +60,14 @@ def plot_weather(df: pd.DataFrame, output_file: BytesIO) -> None:
         alpha=0.7,
     )
     ax1.fill_between(df["day"], df["min_temp"], df["max_temp"], alpha=0.2, color="blue")
-    ax1.set_xlabel("Date")
-    ax1.set_ylabel("Temperature (°C)")
-    ax1.set_title("Temperature Over Time")
-    ax1.legend()
-    ax1.grid(True, alpha=0.3)
-    ax1.tick_params(axis="x", rotation=45)
+    config_ax(
+        ax1,
+        {
+            "title": "Temperature Over Time",
+            "xlabel": "Date",
+            "ylabel": "Temperature (°C)",
+        },
+    )
 
     # Plot 2: Wind Speed
     ax2 = axes[1]
@@ -78,12 +98,14 @@ def plot_weather(df: pd.DataFrame, output_file: BytesIO) -> None:
     ax2.fill_between(
         df["day"], df["min_windspeed"], df["max_windspeed"], alpha=0.2, color="green"
     )
-    ax2.set_xlabel("Date")
-    ax2.set_ylabel("Wind Speed (km/h)")
-    ax2.set_title("Wind Speed Over Time")
-    ax2.legend()
-    ax2.grid(True, alpha=0.3)
-    ax2.tick_params(axis="x", rotation=45)
+    config_ax(
+        ax2,
+        {
+            "title": "Wind Speed Over Time",
+            "xlabel": "Date",
+            "ylabel": "Wind Speed (km/h)",
+        },
+    )
 
     # Plot 3: Relative Humidity
     ax3 = axes[2]
@@ -118,12 +140,14 @@ def plot_weather(df: pd.DataFrame, output_file: BytesIO) -> None:
         alpha=0.2,
         color="purple",
     )
-    ax3.set_xlabel("Date")
-    ax3.set_ylabel("Relative Humidity (%)")
-    ax3.set_title("Relative Humidity Over Time")
-    ax3.legend()
-    ax3.grid(True, alpha=0.3)
-    ax3.tick_params(axis="x", rotation=45)
+    config_ax(
+        ax3,
+        {
+            "title": "Relative Humidity Over Time",
+            "xlabel": "Date",
+            "ylabel": "Relative Humidity (%)",
+        },
+    )
 
     # Adjust layout to prevent overlap
     plt.tight_layout()
