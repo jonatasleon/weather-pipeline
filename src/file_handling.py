@@ -112,7 +112,11 @@ def export_dataframe(
         ) from e
 
 
-def export_file(io_buffer: BytesIO, s3_path: str, s3_client: BaseClient | None = None):
+def upload_fileobj(
+    io_buffer: BytesIO,
+    s3_path: str,
+    s3_client: BaseClient | None = None,
+):
     if s3_client is None:
         s3_client = boto3.client("s3")
 
