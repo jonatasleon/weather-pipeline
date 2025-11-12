@@ -1,5 +1,7 @@
 from enum import StrEnum
 from io import BytesIO
+from pathlib import Path
+from typing import BinaryIO
 
 import boto3
 import pandas as pd
@@ -127,13 +129,108 @@ def upload_fileobj(
 
 def download_file(
     s3_path: str,
-    output_file: BytesIO,
+    output_file: BinaryIO | str | Path,
     s3_client: BaseClient | None = None,
 ):
+    """
+    Download a file from S3.
+
+    Args:
+        s3_path: S3 path (str starting with 's3://').
+        output_file: Output file path (str or Path) or file-like object (BinaryIO).
+        s3_client: Optional boto3 S3 client. If None, a default client is created.
+    """
     if s3_client is None:
         s3_client = boto3.client("s3")
 
     bucket, key = _parse_s3_path(s3_path)
 
-    s3_client.download_fileobj(bucket, key, output_file)
-    output_file.seek(0)
+    # If output_file is a string or Path, open it as a file
+    if isinstance(output_file, (str, Path)):
+        with open(output_file, "wb") as f:
+            s3_client.download_fileobj(bucket, key, f)
+    else:
+        # It's a file-like object
+        s3_client.download_fileobj(bucket, key, output_file)
+        if hasattr(output_file, "seek"):
+            output_file.seek(0)
+
+
+def list_bucket_objects(
+    bucket_name: str,
+    prefix: str = "",
+    s3_client: BaseClient | None = None,
+) -> list[str]:
+    """
+    List all objects in an S3 bucket.
+
+    Args:
+        bucket_name: Name of the S3 bucket.
+        prefix: Optional prefix to filter objects.
+        s3_client: Optional boto3 S3 client. If None, a default client is created.
+
+    Returns:
+        List of S3 paths (s3://bucket/key) for all objects.
+    """
+    if s3_client is None:
+        s3_client = boto3.client("s3")
+
+    objects = []
+    paginator = s3_client.get_paginator("list_objects_v2")
+
+    for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
+        if "Contents" in page:
+            for obj in page["Contents"]:
+                key = obj["Key"]
+                objects.append(f"s3://{bucket_name}/{key}")
+
+    return objects
+
+
+def download_all_from_bucket(
+    bucket_name: str,
+    output_dir: str | Path,
+    prefix: str = "",
+    s3_client: BaseClient | None = None,
+) -> list[str]:
+    """
+    Download all files from an S3 bucket to a local directory.
+
+    Args:
+        bucket_name: Name of the S3 bucket.
+        output_dir: Local directory to save downloaded files.
+        prefix: Optional prefix to filter objects.
+        s3_client: Optional boto3 S3 client. If None, a default client is created.
+
+    Returns:
+        List of local file paths where files were downloaded.
+    """
+    if s3_client is None:
+        s3_client = boto3.client("s3")
+
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    downloaded_files = []
+    objects = list_bucket_objects(bucket_name, prefix, s3_client)
+
+    for s3_path in objects:
+        bucket, key = _parse_s3_path(s3_path)
+
+        # Create local directory structure matching S3 prefix structure
+        key_parts = key.split("/")
+        filename = key_parts[-1]
+
+        # If there are subdirectories in the key, preserve them
+        if len(key_parts) > 1:
+            subdir = output_path / "/".join(key_parts[:-1])
+            subdir.mkdir(parents=True, exist_ok=True)
+            local_path = subdir / filename
+        else:
+            local_path = output_path / filename
+
+        # Download the file
+        s3_client.download_file(bucket, key, str(local_path))
+        downloaded_files.append(str(local_path))
+
+    return downloaded_files

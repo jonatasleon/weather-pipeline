@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class Result(TypedDict):
     region: str
+    date: str
     s3_path: str
 
 
@@ -28,9 +29,10 @@ def orchestrate_weather_collect(region: Region, s3_base_path: str) -> Result:
     data = fetch_weather(latitude, longitude)
     logger.info(f"Weather data fetched for {latitude}, {longitude}")
 
+    now = datetime.now()
     df = pd.DataFrame(data["hourly"])
 
-    stem = f"weather_{region['name']}_{datetime.now():%Y%m%d}"
+    stem = f"weather_{region['name']}_{now:%Y%m%d}"
     raw_filename = f"{stem}.csv"
     raw_file_path = f"{s3_base_path}/{raw_filename}"
     export_dataframe(df, raw_file_path)
@@ -38,6 +40,7 @@ def orchestrate_weather_collect(region: Region, s3_base_path: str) -> Result:
 
     return {
         "region": region["name"],
+        "date": now.strftime("%Y-%m-%d"),
         "s3_path": raw_file_path,
     }
 
@@ -56,6 +59,7 @@ def orchestrate_weather_transform(result: Result, s3_base_path: str) -> Result:
 
     return {
         "region": result["region"],
+        "date": result["date"],
         "s3_path": clean_file_path,
     }
 
@@ -72,6 +76,7 @@ def orchestrate_weather_analysis(result: Result, s3_base_path: str) -> Result:
 
     return {
         "region": result["region"],
+        "date": result["date"],
         "s3_path": analysis_file_path,
     }
 
@@ -84,7 +89,7 @@ def orchestrate_weather_plot(result: Result, s3_base_path: str) -> Result:
     plot_filename = f"{stem}.png"
     plot_file_path = f"{s3_base_path}/{plot_filename}"
     with BytesIO() as output_file:
-        plot_weather(df, output_file)
+        plot_weather(df, result, output_file)
         output_file.seek(0)
         upload_fileobj(output_file, plot_file_path)
     logger.info(f"Plotted data saved to {plot_file_path}")

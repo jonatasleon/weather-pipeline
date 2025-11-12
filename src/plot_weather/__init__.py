@@ -1,14 +1,64 @@
 from io import BytesIO
+from typing import TypedDict
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def config_ax(ax: plt.Axes, info: dict[str, str]) -> plt.Axes:
-    ax.set_title(info["title"])
-    ax.set_xlabel(info["xlabel"])
-    ax.set_ylabel(info["ylabel"])
-    ax.legend(loc="best", prop={"size": 8})
+class PlotConfig(TypedDict):
+    time_var_name: str
+    main_var_name: str
+    max_var_name: str
+    min_var_name: str
+    main_var_label: str
+    min_var_label: str
+    max_var_label: str
+    main_var_color: str
+    min_var_color: str
+    max_var_color: str
+    title: str
+    xlabel: str
+    ylabel: str
+
+
+def plot_variable(ax: plt.Axes, df: pd.DataFrame, config: PlotConfig) -> plt.Axes:
+    ax.plot(
+        df[config["time_var_name"]],
+        df[config["main_var_name"]],
+        label=config["main_var_label"],
+        color=config["main_var_color"],
+        marker="o",
+        linewidth=2,
+    )
+    ax.plot(
+        df[config["time_var_name"]],
+        df[config["max_var_name"]],
+        label=config["max_var_label"],
+        color=config["max_var_color"],
+        marker="^",
+        linestyle="--",
+        alpha=0.7,
+    )
+    ax.plot(
+        df[config["time_var_name"]],
+        df[config["min_var_name"]],
+        label=config["min_var_label"],
+        color=config["min_var_color"],
+        marker="v",
+        linestyle="--",
+        alpha=0.7,
+    )
+    ax.fill_between(
+        df[config["time_var_name"]],
+        df[config["min_var_name"]],
+        df[config["max_var_name"]],
+        alpha=0.2,
+        color=config["main_var_color"],
+    )
+    ax.set_title(config["title"])
+    ax.set_xlabel(config["xlabel"])
+    ax.set_ylabel(config["ylabel"])
+    ax.legend(loc="best", fancybox=True, framealpha=0.2, prop={"size": 8})
     ax.grid(True, alpha=0.3)
     ax.tick_params(axis="x", rotation=45)
     return ax
@@ -31,7 +81,7 @@ def plot_weather(
     df["day"] = pd.to_datetime(df["day"])
 
     # Create figure with subplots
-    fig, axes = plt.subplots(3, 1, figsize=(9, 12), dpi=200)
+    fig, axes = plt.subplots(3, 1, figsize=(9, 12), dpi=200, sharex=True)
     fig.suptitle(
         f"Weather Prediction for {plot_ctx['region']} on {plot_ctx['date']}",
         fontsize=16,
@@ -40,114 +90,60 @@ def plot_weather(
 
     # Plot 1: Temperature (avg, min, max)
     ax1 = axes[0]
-    ax1.plot(
-        df["day"], df["avg_temp"], label="Average Temperature", marker="o", linewidth=2
-    )
-    ax1.plot(
-        df["day"],
-        df["min_temp"],
-        label="Min Temperature",
-        marker="v",
-        linestyle="--",
-        alpha=0.7,
-    )
-    ax1.plot(
-        df["day"],
-        df["max_temp"],
-        label="Max Temperature",
-        marker="^",
-        linestyle="--",
-        alpha=0.7,
-    )
-    ax1.fill_between(df["day"], df["min_temp"], df["max_temp"], alpha=0.2, color="blue")
-    config_ax(
-        ax1,
-        {
-            "title": "Temperature Over Time",
-            "xlabel": "Date",
-            "ylabel": "Temperature (°C)",
-        },
-    )
+    plot_config = {
+        "time_var_name": "day",
+        "main_var_name": "avg_temp",
+        "max_var_name": "max_temp",
+        "min_var_name": "min_temp",
+        "main_var_label": "Average Temperature",
+        "min_var_label": "Min Temperature",
+        "max_var_label": "Max Temperature",
+        "main_var_color": "blue",
+        "min_var_color": "red",
+        "max_var_color": "green",
+        "title": "Temperature Over Time",
+        "xlabel": "Date",
+        "ylabel": "Temperature (°C)",
+    }
+    plot_variable(ax1, df, plot_config)
 
     # Plot 2: Wind Speed
     ax2 = axes[1]
-    ax2.plot(
-        df["day"],
-        df["avg_windspeed"],
-        label="Average Wind Speed",
-        marker="o",
-        color="green",
-        linewidth=2,
-    )
-    ax2.plot(
-        df["day"],
-        df["min_windspeed"],
-        label="Min Wind Speed",
-        marker="v",
-        linestyle="--",
-        alpha=0.7,
-    )
-    ax2.plot(
-        df["day"],
-        df["max_windspeed"],
-        label="Max Wind Speed",
-        marker="^",
-        linestyle="--",
-        alpha=0.7,
-    )
-    ax2.fill_between(
-        df["day"], df["min_windspeed"], df["max_windspeed"], alpha=0.2, color="green"
-    )
-    config_ax(
-        ax2,
-        {
-            "title": "Wind Speed Over Time",
-            "xlabel": "Date",
-            "ylabel": "Wind Speed (km/h)",
-        },
-    )
+    plot_config = {
+        "time_var_name": "day",
+        "main_var_name": "avg_windspeed",
+        "max_var_name": "max_windspeed",
+        "min_var_name": "min_windspeed",
+        "main_var_label": "Average Wind Speed",
+        "min_var_label": "Min Wind Speed",
+        "max_var_label": "Max Wind Speed",
+        "main_var_color": "green",
+        "min_var_color": "red",
+        "max_var_color": "blue",
+        "title": "Wind Speed Over Time",
+        "xlabel": "Date",
+        "ylabel": "Wind Speed (km/h)",
+    }
+    plot_variable(ax2, df, plot_config)
 
     # Plot 3: Relative Humidity
     ax3 = axes[2]
-    ax3.plot(
-        df["day"],
-        df["avg_relative_humidity"],
-        label="Average Relative Humidity",
-        marker="o",
-        color="purple",
-        linewidth=2,
-    )
-    ax3.plot(
-        df["day"],
-        df["min_relative_humidity"],
-        label="Min Relative Humidity",
-        marker="v",
-        linestyle="--",
-        alpha=0.7,
-    )
-    ax3.plot(
-        df["day"],
-        df["max_relative_humidity"],
-        label="Max Relative Humidity",
-        marker="^",
-        linestyle="--",
-        alpha=0.7,
-    )
-    ax3.fill_between(
-        df["day"],
-        df["min_relative_humidity"],
-        df["max_relative_humidity"],
-        alpha=0.2,
-        color="purple",
-    )
-    config_ax(
-        ax3,
-        {
-            "title": "Relative Humidity Over Time",
-            "xlabel": "Date",
-            "ylabel": "Relative Humidity (%)",
-        },
-    )
+    plot_config = {
+        "time_var_name": "day",
+        "main_var_name": "avg_relative_humidity",
+        "max_var_name": "max_relative_humidity",
+        "min_var_name": "min_relative_humidity",
+        "main_var_label": "Average Relative Humidity",
+        "min_var_label": "Min Relative Humidity",
+        "max_var_label": "Max Relative Humidity",
+        "main_var_color": "purple",
+        "min_var_color": "red",
+        "max_var_color": "blue",
+        "title": "Relative Humidity Over Time",
+        "xlabel": "Date",
+        "ylabel": "Relative Humidity (%)",
+    }
+    plot_variable(ax3, df, plot_config)
 
     # Adjust layout to prevent overlap
     plt.tight_layout()
