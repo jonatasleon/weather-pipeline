@@ -43,4 +43,4 @@ def analysis_weather(s3_path: str):
     with duckdb.connect(config={"s3_region": os.environ["REGION_NAME"]}) as conn:
         with conn.cursor() as cursor:
             result = cursor.execute(query)
-            return result.df()
+            return result.pl()

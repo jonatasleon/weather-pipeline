@@ -8,7 +8,7 @@ from typing import TypedDict
 import polars as pl
 
 from src.fetch_weather import fetch_weather_history
-from src.file_handling import upload_dataframe, upload_fileobj
+from src.file_handling import upload_dataframe, upload_fileobj, download_file
 from src.interest_region import Region
 from src.plot_weather import plot_weather
 from src.query_weather import analysis_weather
@@ -41,7 +41,8 @@ def orchestrate_weather_collect(region: Region, s3_base_path: str) -> Result:
     stem = f"weather_history_{region['name']}_{now}"
     raw_file_path = f"{s3_base_path}/{stem}.json"
     with BytesIO() as buffer:
-        json.dump(data, buffer, indent=None)
+        json_str = json.dumps(data, indent=None)
+        buffer.write(json_str.encode("utf-8"))
         buffer.seek(0)
         upload_fileobj(buffer, raw_file_path)
     logger.info(f"Raw data saved to {raw_file_path}")
@@ -54,10 +55,13 @@ def orchestrate_weather_collect(region: Region, s3_base_path: str) -> Result:
 
 
 def orchestrate_weather_transform(result: Result, s3_base_path: str) -> Result:
-    data = json.load(result["s3_path"])
+    with BytesIO() as buffer:
+        download_file(result["s3_path"], buffer)
+        buffer.seek(0)
+        data = json.load(buffer)
     df = pl.from_dict(data["hourly"])
     df = transform_weather(df)
-    logger.info(f"Data transformed for {result['s3_path']}")
+    logger.info(f"Data transformed for {result['s3_path']!r}")
 
     stem = Path(result["s3_path"]).stem
     clean_filename = f"{stem}.parquet"
@@ -75,7 +79,7 @@ def orchestrate_weather_transform(result: Result, s3_base_path: str) -> Result:
 
 def orchestrate_weather_analysis(result: Result, s3_base_path: str) -> Result:
     df = analysis_weather(result["s3_path"])
-    logger.info(f"Data analyzed for {result["s3_path"]}")
+    logger.info(f"Data analyzed for {result["s3_path"]!r}")
 
     stem = Path(result["s3_path"]).stem
     analysis_filename = f"{stem}.csv"
@@ -92,7 +96,7 @@ def orchestrate_weather_analysis(result: Result, s3_base_path: str) -> Result:
 
 def orchestrate_weather_plot(result: Result, s3_base_path: str) -> Result:
     df = pl.read_csv(result["s3_path"])
-    logger.info(f"Data plotted for {result["s3_path"]}")
+    logger.info(f"Data plotted for {result["s3_path"]!r}")
 
     stem = Path(result["s3_path"]).stem
     plot_filename = f"{stem}.png"

@@ -1,21 +1,17 @@
-from io import BytesIO
-import json
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
 from pathlib import Path
 
-import polars as pl
 from dotenv import load_dotenv
 from rich.console import Console
-from rich.markdown import Markdown
 from rich.logging import RichHandler
 
-from src.file_handling import upload_dataframe, ExportFormats, upload_fileobj
-from src.fetch_weather import fetch_weather_history
-from src.query_weather import analysis_weather
-from src.transform_weather import transform_weather
+from src.orchestration import (
+    orchestrate_weather_collect,
+    orchestrate_weather_transform,
+    orchestrate_weather_analysis,
+)
 from src.utils import create_s3_path
 
 load_dotenv()
@@ -49,42 +45,25 @@ def main():
         bucket_name = os.getenv("BUCKET_NAME")
 
         logger.info("Fetching weather data")
-        data = fetch_weather_history(
-            latitude=LATITUDE,
-            longitude=LONGITUDE,
-            start_date=datetime.now() - timedelta(days=30),
-            end_date=datetime.now(),
+        result = orchestrate_weather_collect(
+            region=dict(
+                name="São Paulo",
+                latitude=LATITUDE,
+                longitude=LONGITUDE,
+            ),
+            s3_base_path=create_s3_path(bucket_name, "history/raw"),
         )
-        with BytesIO() as buffer:
-            buffer.write(json.dumps(data).encode())
-            buffer.seek(0)
-            filename = f"weather_history_{datetime.now():%Y%m%d_%H%M}.json"
-            upload_fileobj(buffer, create_s3_path(bucket_name, "history/raw", filename))
-
-        df = pl.from_dict(data["hourly"])
-        logger.info("Weather data fetched")
-
-        logger.info("Transforming data")
-        df = transform_weather(df)
-        logger.info("Data transformed")
-
-        logger.info("Saving transformed data to Parquet")
-        clean_s3_path = create_s3_path(
-            bucket_name,
-            "history/clean",
-            f"weather_{datetime.now():%Y%m%d_%H%M}.parquet",
+        logger.info(f"Data collected for {result['region']}: {result['s3_path']!r}")
+        result = orchestrate_weather_transform(
+            result=result,
+            s3_base_path=create_s3_path(bucket_name, "history/clean"),
         )
-        upload_dataframe(df, clean_s3_path, ExportFormats.PARQUET)
-        logger.info("Transformed data saved to Parquet")
-
-        logger.info(f"Querying data from {clean_s3_path}")
-        df = analysis_weather(clean_s3_path)
-        logger.info("Query result fetched")
-
-        logger.info("Printing query result")
-        output_md = Markdown(df.to_markdown())
-        console.print(output_md)
-        logger.info("Query result printed")
+        logger.info(f"Data transformed for {result['region']}: {result['s3_path']!r}")
+        result = orchestrate_weather_analysis(
+            result,
+            create_s3_path(bucket_name, "history/analysis"),
+        )
+        logger.info(f"Data analyzed for {result['region']}: {result['s3_path']!r}")
     except Exception:
         logger.error("Error occurred", exc_info=True)
         console.print_exception(show_locals=True)
