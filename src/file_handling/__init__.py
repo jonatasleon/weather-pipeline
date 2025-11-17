@@ -79,7 +79,7 @@ def _parse_s3_path(s3_path: str) -> tuple[str, str]:
     return bucket, key
 
 
-def export_dataframe(
+def upload_dataframe(
     dataframe: pd.DataFrame,
     s3_path: str,
     format: ExportFormats | None = None,
