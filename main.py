@@ -6,7 +6,7 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import pandas as pd
+import polars as pl
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.markdown import Markdown
@@ -61,7 +61,7 @@ def main():
             filename = f"weather_history_{datetime.now():%Y%m%d_%H%M}.json"
             upload_fileobj(buffer, create_s3_path(bucket_name, "history/raw", filename))
 
-        df = pd.DataFrame(data["hourly"])
+        df = pl.from_dict(data["hourly"])
         logger.info("Weather data fetched")
 
         logger.info("Transforming data")

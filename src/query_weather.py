@@ -1,12 +1,13 @@
 import os
 from textwrap import dedent
+
 import duckdb
 
 
 def analysis_weather(s3_path: str):
     query = dedent(
         f"""
-        SELECT day,
+        SELECT date_trunc('day', time) AS day,
             AVG(temperature_2m) AS avg_temp,
             MIN(temperature_2m) AS min_temp,
             MAX(temperature_2m) AS max_temp,
@@ -35,7 +36,7 @@ def analysis_weather(s3_path: str):
             COUNT(relative_humidity_2m) AS count_relative_humidity,
             SUM(relative_humidity_2m) AS sum_relative_humidity,
         FROM '{s3_path}'
-        GROUP BY day
+        GROUP BY date_trunc('day', time)
         ORDER BY day DESC
         """
     ).strip()

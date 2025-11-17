@@ -1,10 +1,14 @@
 ## transform_weather.py
-import pandas as pd
+import polars as pl
 
 
-def transform_weather(df: pd.DataFrame):
-    df["time"] = pd.to_datetime(df["time"])
-    df["temperature_2m"] = df["temperature_2m"].astype(float)
-    df["day"] = df["time"].dt.date
-
+def transform_weather(df: pl.DataFrame):
+    df = df.with_columns(
+        [
+            pl.col("time").str.to_datetime().alias("time"),
+            pl.col("temperature_2m").cast(pl.Float64),
+            pl.col("windspeed_10m").cast(pl.Float64),
+            pl.col("relative_humidity_2m").cast(pl.Float64),
+        ]
+    )
     return df

@@ -5,7 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TypedDict
 
-import pandas as pd
+import polars as pl
 
 from src.fetch_weather import fetch_weather_history
 from src.file_handling import upload_dataframe, upload_fileobj
@@ -48,7 +48,7 @@ def orchestrate_weather_collect(region: Region, s3_base_path: str) -> Result:
 
 def orchestrate_weather_transform(result: Result, s3_base_path: str) -> Result:
     data = json.load(result["s3_path"])
-    df = pd.DataFrame(data["hourly"])
+    df = pl.from_dict(data["hourly"])
     df = transform_weather(df)
     logger.info(f"Data transformed for {result['s3_path']}")
 
@@ -84,14 +84,14 @@ def orchestrate_weather_analysis(result: Result, s3_base_path: str) -> Result:
 
 
 def orchestrate_weather_plot(result: Result, s3_base_path: str) -> Result:
-    df = pd.read_csv(result["s3_path"])
+    df = pl.read_csv(result["s3_path"])
     logger.info(f"Data plotted for {result["s3_path"]}")
 
     stem = Path(result["s3_path"]).stem
     plot_filename = f"{stem}.png"
     plot_file_path = f"{s3_base_path}/{plot_filename}"
     with BytesIO() as output_file:
-        plot_weather(df, result, output_file)
+        plot_weather(df.to_pandas(), result, output_file)
         output_file.seek(0)
         upload_fileobj(output_file, plot_file_path)
     logger.info(f"Plotted data saved to {plot_file_path}")

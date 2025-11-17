@@ -9,6 +9,7 @@ dependencies = [
     "duckdb>=1.4.1",
     "matplotlib>=3.9.0",
     "pandas>=2.3.3",
+    "polars>=1.35.2",
     "prefect>=3.5.0",
     "prefect-aws>=0.5.13",
     "pyarrow>=22.0.0",

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 import boto3
-import pandas as pd
+import polars as pl
 from botocore.client import BaseClient
 
 
@@ -14,7 +14,7 @@ class ExportFormats(StrEnum):
 
 
 def to_csv(
-    dataframe: pd.DataFrame,
+    dataframe: pl.DataFrame,
     s3_path: str,
     s3_client: BaseClient,
 ):
@@ -22,14 +22,14 @@ def to_csv(
     bucket, key = _parse_s3_path(s3_path)
 
     buffer = BytesIO()
-    dataframe.to_csv(buffer, index=False)
+    dataframe.write_csv(buffer)
     buffer.seek(0)
 
     s3_client.upload_fileobj(buffer, bucket, key)
 
 
 def to_parquet(
-    dataframe: pd.DataFrame,
+    dataframe: pl.DataFrame,
     s3_path: str,
     s3_client: BaseClient,
 ):
@@ -37,7 +37,7 @@ def to_parquet(
     bucket, key = _parse_s3_path(s3_path)
 
     buffer = BytesIO()
-    dataframe.to_parquet(buffer, index=False)
+    dataframe.write_parquet(buffer)
     buffer.seek(0)
 
     s3_client.upload_fileobj(buffer, bucket, key)
@@ -80,7 +80,7 @@ def _parse_s3_path(s3_path: str) -> tuple[str, str]:
 
 
 def upload_dataframe(
-    dataframe: pd.DataFrame,
+    dataframe: pl.DataFrame,
     s3_path: str,
     format: ExportFormats | None = None,
 ):
