@@ -1,13 +1,14 @@
+import json
 import logging
-from io import BytesIO
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from typing import TypedDict
 
 import pandas as pd
 
-from src.file_handling import export_dataframe, upload_fileobj
-from src.fetch_weather import fetch_weather
+from src.fetch_weather import fetch_weather_history
+from src.file_handling import upload_dataframe, upload_fileobj
 from src.interest_region import Region
 from src.plot_weather import plot_weather
 from src.query_weather import analysis_weather
@@ -26,27 +27,28 @@ class Result(TypedDict):
 def orchestrate_weather_collect(region: Region, s3_base_path: str) -> Result:
     logger.info(f"Orchestrating weather collect for {region['name']}")
     latitude, longitude = region["latitude"], region["longitude"]
-    data = fetch_weather(latitude, longitude)
-    logger.info(f"Weather data fetched for {latitude}, {longitude}")
+    data = fetch_weather_history(latitude, longitude)
+    logger.info(f"Weather data fetched for {region['name']}")
 
-    now = datetime.now()
-    df = pd.DataFrame(data["hourly"])
-
-    stem = f"weather_{region['name']}_{now:%Y%m%d}"
-    raw_filename = f"{stem}.csv"
-    raw_file_path = f"{s3_base_path}/{raw_filename}"
-    export_dataframe(df, raw_file_path)
+    now = f"{datetime.now():%Y%m%d_%H%M}"
+    stem = f"weather_history_{region['name']}_{now}"
+    raw_file_path = f"{s3_base_path}/{stem}.json"
+    with BytesIO() as buffer:
+        json.dump(data, buffer, indent=None)
+        buffer.seek(0)
+        upload_fileobj(buffer, raw_file_path)
     logger.info(f"Raw data saved to {raw_file_path}")
 
     return {
         "region": region["name"],
-        "date": now.strftime("%Y-%m-%d"),
+        "date": now,
         "s3_path": raw_file_path,
     }
 
 
 def orchestrate_weather_transform(result: Result, s3_base_path: str) -> Result:
-    df = pd.read_csv(result["s3_path"])
+    data = json.load(result["s3_path"])
+    df = pd.DataFrame(data["hourly"])
     df = transform_weather(df)
     logger.info(f"Data transformed for {result['s3_path']}")
 
@@ -54,7 +56,7 @@ def orchestrate_weather_transform(result: Result, s3_base_path: str) -> Result:
     clean_filename = f"{stem}.parquet"
     clean_file_path = f"{s3_base_path}/{clean_filename}"
 
-    export_dataframe(df, clean_file_path)
+    upload_dataframe(df, clean_file_path)
     logger.info(f"Transformed data saved to {clean_file_path}")
 
     return {
@@ -71,7 +73,7 @@ def orchestrate_weather_analysis(result: Result, s3_base_path: str) -> Result:
     stem = Path(result["s3_path"]).stem
     analysis_filename = f"{stem}.csv"
     analysis_file_path = f"{s3_base_path}/{analysis_filename}"
-    export_dataframe(df, analysis_file_path)
+    upload_dataframe(df, analysis_file_path)
     logger.info(f"Analyzed data saved to {analysis_file_path}")
 
     return {
