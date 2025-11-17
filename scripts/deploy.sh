@@ -11,6 +11,5 @@ fi
 
 uvx prefect-cloud deploy flows/weather_flow.py:main \
     --from jonatasleon/weather-pipeline \
-    --with-requirements requirements.txt \
-    --name weather-flow \
-    --cron "0 */3 * * *"
+    --with-requirements requirements.txt
+uvx prefect-cloud schedule main/main "0 */3 * * *"
