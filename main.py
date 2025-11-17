@@ -1,7 +1,9 @@
+from io import BytesIO
+import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -10,8 +12,8 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.logging import RichHandler
 
-from src.file_handling import export_dataframe, ExportFormats
-from src.fetch_weather import fetch_weather
+from src.file_handling import upload_dataframe, ExportFormats, upload_fileobj
+from src.fetch_weather import fetch_weather_history
 from src.query_weather import analysis_weather
 from src.transform_weather import transform_weather
 from src.utils import create_s3_path
@@ -47,18 +49,20 @@ def main():
         bucket_name = os.getenv("BUCKET_NAME")
 
         logger.info("Fetching weather data")
-        data = fetch_weather(latitude=LATITUDE, longitude=LONGITUDE)
+        data = fetch_weather_history(
+            latitude=LATITUDE,
+            longitude=LONGITUDE,
+            start_date=datetime.now() - timedelta(days=30),
+            end_date=datetime.now(),
+        )
+        with BytesIO() as buffer:
+            buffer.write(json.dumps(data).encode())
+            buffer.seek(0)
+            filename = f"weather_history_{datetime.now():%Y%m%d_%H%M}.json"
+            upload_fileobj(buffer, create_s3_path(bucket_name, "history/raw", filename))
+
         df = pd.DataFrame(data["hourly"])
         logger.info("Weather data fetched")
-
-        logger.info("Saving raw data to CSV")
-        raw_s3_path = create_s3_path(
-            bucket_name,
-            "raw",
-            f"weather_{datetime.now():%Y%m%d_%H%M}.csv",
-        )
-        export_dataframe(df, raw_s3_path)
-        logger.info("Raw data saved to CSV")
 
         logger.info("Transforming data")
         df = transform_weather(df)
@@ -67,10 +71,10 @@ def main():
         logger.info("Saving transformed data to Parquet")
         clean_s3_path = create_s3_path(
             bucket_name,
-            "clean",
+            "history/clean",
             f"weather_{datetime.now():%Y%m%d_%H%M}.parquet",
         )
-        export_dataframe(df, clean_s3_path, ExportFormats.PARQUET)
+        upload_dataframe(df, clean_s3_path, ExportFormats.PARQUET)
         logger.info("Transformed data saved to Parquet")
 
         logger.info(f"Querying data from {clean_s3_path}")
