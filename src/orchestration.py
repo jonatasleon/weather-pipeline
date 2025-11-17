@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from typing import TypedDict
@@ -27,7 +27,14 @@ class Result(TypedDict):
 def orchestrate_weather_collect(region: Region, s3_base_path: str) -> Result:
     logger.info(f"Orchestrating weather collect for {region['name']}")
     latitude, longitude = region["latitude"], region["longitude"]
-    data = fetch_weather_history(latitude, longitude)
+    today = datetime.now()
+    yesterday = today - timedelta(days=1)
+    data = fetch_weather_history(
+        latitude,
+        longitude,
+        start_date=yesterday,
+        end_date=today,
+    )
     logger.info(f"Weather data fetched for {region['name']}")
 
     now = f"{datetime.now():%Y%m%d_%H%M}"
