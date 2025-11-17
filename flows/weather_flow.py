@@ -50,30 +50,23 @@ def orchestrate_weather_plot_task(ctx: dict, s3_base_path: str) -> dict:
 @flow(log_prints=True, name="weather-flow")
 def main():
     bucket_name = os.getenv("BUCKET_NAME")
-    raw_s3_path = unmapped(create_s3_path(bucket_name, "raw"))
-    clean_s3_path = unmapped(create_s3_path(bucket_name, "clean"))
-    analysis_s3_path = unmapped(create_s3_path(bucket_name, "analysis"))
-    plot_s3_path = unmapped(create_s3_path(bucket_name, "plot"))
+    raw_s3_path = unmapped(create_s3_path(bucket_name, "history/raw"))
+    clean_s3_path = unmapped(create_s3_path(bucket_name, "history/clean"))
+    analysis_s3_path = unmapped(create_s3_path(bucket_name, "history/analysis"))
 
     collect_results = orchestrate_weather_collect_task.map(
         REGIONS,
         raw_s3_path,
     )
-    collect_results.wait()
     transform_results = orchestrate_weather_transform_task.map(
         collect_results.result(),
         clean_s3_path,
     )
-    transform_results.wait()
     analysis_results = orchestrate_weather_analysis_task.map(
         transform_results.result(),
         analysis_s3_path,
     )
     analysis_results.wait()
-    orchestrate_weather_plot_task.map(
-        analysis_results.result(),
-        plot_s3_path,
-    )
 
 
 if __name__ == "__main__":
